@@ -5,7 +5,6 @@ using System.Linq;
 using System.Threading;
 using MasterDevs.ChromeDevTools.Protocol.Chrome.DOM;
 using Task = System.Threading.Tasks.Task;
-
 namespace MasterDevs.ChromeDevTools.Sample
 {
     internal class Program
@@ -20,8 +19,10 @@ namespace MasterDevs.ChromeDevTools.Sample
                 var screenshotDone = new ManualResetEventSlim();
 
                 // STEP 1 - Run Chrome
-                var chromeProcessFactory = new ChromeProcessFactory(new StubbornDirectoryCleaner());
-                using (var chromeProcess = chromeProcessFactory.Create(9222, true))
+                
+                //var chromeProcessFactory = new ChromeProcessFactory(new StubbornDirectoryCleaner(), "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe");
+                //using (var chromeProcess = chromeProcessFactory.Create(9222, true))
+                using (var chromeProcess = new RemoteChromeProcess("http://127.0.0.1:12345"))
                 {
                     // STEP 2 - Create a debugging session
                     var sessionInfo = (await chromeProcess.GetSessionInfo()).LastOrDefault();
@@ -32,16 +33,16 @@ namespace MasterDevs.ChromeDevTools.Sample
                     //
                     // Here we are sending a commands to tell chrome to set the viewport size 
                     // and navigate to the specified URL
-                    await chromeSession.SendAsync(new SetDeviceMetricsOverrideCommand
-                    {
-                        Width = ViewPortWidth,
-                        Height = ViewPortHeight,
-                        Scale = 1
-                    });
+                    //await chromeSession.SendAsync(new SetDeviceMetricsOverrideCommand
+                    //{
+                    //    Width = ViewPortWidth,
+                    //    Height = ViewPortHeight,
+                    //    Scale = 1
+                    //});
 
                     var navigateResponse = await chromeSession.SendAsync(new NavigateCommand
                     {
-                        Url = "http://www.google.com"
+                        Url = "http://bilibili.tv"
                     });
                     Console.WriteLine("NavigateResponse: " + navigateResponse.Id);
 

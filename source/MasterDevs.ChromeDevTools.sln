@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.25420.1
@@ -16,15 +16,15 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SolutionFiles", "SolutionFi
 		..\README.md = ..\README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterDevs.ChromeDevTools", "ChromeDevTools\MasterDevs.ChromeDevTools.csproj", "{C2508EE5-AAB2-4275-88C9-7DA9D1961336}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterDevs.ChromeDevTools", "ChromeDevTools\MasterDevs.ChromeDevTools.csproj", "{C2508EE5-AAB2-4275-88C9-7DA9D1961336}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterDevs.ChromeDevTools.ProtocolGenerator", "ProtocolGenerator\MasterDevs.ChromeDevTools.ProtocolGenerator.csproj", "{97C7FCF5-1964-4878-B7CD-63448CA403B1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterDevs.ChromeDevTools.ProtocolGenerator", "ProtocolGenerator\MasterDevs.ChromeDevTools.ProtocolGenerator.csproj", "{97C7FCF5-1964-4878-B7CD-63448CA403B1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterDevs.ChromeDevTools.Sample", "Sample\MasterDevs.ChromeDevTools.Sample.csproj", "{36138327-0A72-44E3-B9DB-C4E6155AAFD5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterDevs.ChromeDevTools.Sample", "Sample\MasterDevs.ChromeDevTools.Sample.csproj", "{36138327-0A72-44E3-B9DB-C4E6155AAFD5}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterDevs.ChromeDevTools.ProtocolGenerator.Tests", "ProtocolGenerator.Tests\MasterDevs.ChromeDevTools.ProtocolGenerator.Tests.csproj", "{4C3A1910-79C5-43C0-8599-89921482B38B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterDevs.ChromeDevTools.ProtocolGenerator.Tests", "ProtocolGenerator.Tests\MasterDevs.ChromeDevTools.ProtocolGenerator.Tests.csproj", "{4C3A1910-79C5-43C0-8599-89921482B38B}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MasterDevs.ChromeDevTools.Tests", "MasterDevs.ChromeDevTools.Tests\MasterDevs.ChromeDevTools.Tests.csproj", "{4CFEBA12-2ECB-4C17-9EA1-AD79C39EEA72}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MasterDevs.ChromeDevTools.Tests", "MasterDevs.ChromeDevTools.Tests\MasterDevs.ChromeDevTools.Tests.csproj", "{4CFEBA12-2ECB-4C17-9EA1-AD79C39EEA72}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

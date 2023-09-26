@@ -2,11 +2,14 @@
 using MasterDevs.ChromeDevTools.Serialization;
 using Newtonsoft.Json;
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using WebSocket4Net;
 
 namespace MasterDevs.ChromeDevTools
 {
@@ -16,12 +19,11 @@ namespace MasterDevs.ChromeDevTools
         private readonly ConcurrentDictionary<string, ConcurrentBag<Action<object>>> _handlers = new ConcurrentDictionary<string, ConcurrentBag<Action<object>>>();
         private ICommandFactory _commandFactory;
         private IEventFactory _eventFactory;
-        private ManualResetEvent _openEvent = new ManualResetEvent(false);
         private ManualResetEvent _publishEvent = new ManualResetEvent(false);
         private ConcurrentDictionary<long, ManualResetEventSlim> _requestWaitHandles = new ConcurrentDictionary<long, ManualResetEventSlim>();
         private ICommandResponseFactory _responseFactory;
         private ConcurrentDictionary<long, ICommandResponse> _responses = new ConcurrentDictionary<long, ICommandResponse>();
-        private WebSocket _webSocket;
+        private ClientWebSocket _webSocket;
         private static object _Lock = new object();
 
         public ChromeSession(string endpoint, ICommandFactory commandFactory, ICommandResponseFactory responseFactory, IEventFactory eventFactory)
@@ -37,7 +39,7 @@ namespace MasterDevs.ChromeDevTools
             if (null == _webSocket) return;
             if (_webSocket.State == WebSocketState.Open)
             {
-                _webSocket.Close();
+                _webSocket.CloseAsync(WebSocketCloseStatus.Empty, "Program Dispose", CancellationToken.None).Wait();
             }
             _webSocket.Dispose();
         }
@@ -56,23 +58,20 @@ namespace MasterDevs.ChromeDevTools
             }
         }
 
-        private Task Init()
+        private async Task Init()
         {
-            _openEvent.Reset();
 
-            _webSocket = new WebSocket(_endpoint);
-            _webSocket.EnableAutoSendPing = false;
-            _webSocket.Opened += WebSocket_Opened;
-            _webSocket.MessageReceived += WebSocket_MessageReceived;
-            _webSocket.Error += WebSocket_Error;
-            _webSocket.Closed += WebSocket_Closed;
-            _webSocket.DataReceived += WebSocket_DataReceived;
+            _webSocket = new ClientWebSocket();
+            await _webSocket.ConnectAsync(new Uri(_endpoint), CancellationToken.None);
 
-            _webSocket.Open();
-            return Task.Run(() =>
-            {
-                _openEvent.WaitOne();
-            });
+            //_webSocket.EnableAutoSendPing = false;
+            //_webSocket.MessageReceived += WebSocket_MessageReceived;
+            //_webSocket.Error += WebSocket_Error;
+            //_webSocket.Closed += WebSocket_Closed;
+            //_webSocket.DataReceived += WebSocket_DataReceived;
+
+            //_webSocket.Open();
+
         }
 
         public Task<ICommandResponse> SendAsync<T>(CancellationToken cancellationToken)
@@ -88,7 +87,7 @@ namespace MasterDevs.ChromeDevTools
             return CastTaskResult<ICommandResponse, CommandResponse<T>>(task);
         }
 
-        private Task<TDerived> CastTaskResult<TBase, TDerived>(Task<TBase> task) where TDerived: TBase
+        private Task<TDerived> CastTaskResult<TBase, TDerived>(Task<TBase> task) where TDerived : TBase
         {
             var tcs = new TaskCompletionSource<TDerived>();
             task.ContinueWith(t => tcs.SetResult((TDerived)t.Result),
@@ -105,7 +104,7 @@ namespace MasterDevs.ChromeDevTools
             var handlerType = typeof(T);
             var handlerForBag = new Action<object>(obj => handler((T)obj));
             _handlers.AddOrUpdate(handlerType.FullName,
-                (m) => new ConcurrentBag<Action<object>>(new [] { handlerForBag }),
+                (m) => new ConcurrentBag<Action<object>>(new[] { handlerForBag }),
                 (m, currentBag) =>
                 {
                     currentBag.Add(handlerForBag);
@@ -142,7 +141,8 @@ namespace MasterDevs.ChromeDevTools
             if (evnt.GetType().GetGenericTypeDefinition() == typeof(Event<>))
             {
                 handler(evnt.Params);
-            } else
+            }
+            else
             {
                 handler(evnt);
             }
@@ -171,26 +171,40 @@ namespace MasterDevs.ChromeDevTools
             }
         }
 
-        private Task<ICommandResponse> SendCommand(Command command, CancellationToken cancellationToken)
+        private async Task<ICommandResponse> SendCommand(Command command, CancellationToken cancellationToken)
         {
+
             var settings = new JsonSerializerSettings
             {
                 ContractResolver = new MessageContractResolver(),
                 NullValueHandling = NullValueHandling.Ignore,
             };
             var requestString = JsonConvert.SerializeObject(command, settings);
-            var requestResetEvent = new ManualResetEventSlim(false);
-            _requestWaitHandles.AddOrUpdate(command.Id, requestResetEvent, (id, r) => requestResetEvent);
-            return Task.Run(() =>
+            Console.WriteLine(requestString);
+
+            var reqContent = Encoding.UTF8.GetBytes(requestString);
+            EnsureInit();
+            await _webSocket.SendAsync(new ArraySegment<byte>(reqContent), WebSocketMessageType.Text, true, cancellationToken);
+            var data = new List<byte>();
+            bool end = false;
+            using var buffer2 = MemoryPool<byte>.Shared.Rent(1024);
+            while (!end)
             {
-                EnsureInit();
-                _webSocket.Send(requestString);
-                requestResetEvent.Wait(cancellationToken);
-                ICommandResponse response = null;
-                _responses.TryRemove(command.Id, out response);
-                _requestWaitHandles.TryRemove(command.Id, out requestResetEvent);
-                return response;
-            });
+                var buffer = ArrayPool<byte>.Shared.Rent(1024);
+                var a = await _webSocket.ReceiveAsync(buffer2.Memory, cancellationToken);
+                for (int i = 0; i < a.Count; i++)
+                {
+                    data.Add(buffer2.Memory.Span[i]);
+                }
+                end = a.EndOfMessage;
+            }
+
+            var response = _responseFactory.Create(Encoding.UTF8.GetString(data.ToArray()));
+            Console.WriteLine(response.ToString());
+            //_responses.TryRemove(command.Id, out response);
+            //_requestWaitHandles.TryRemove(command.Id, out _);
+            return response;
+
         }
 
         private bool TryGetCommandResponse(byte[] data, out ICommandResponse response)
@@ -217,53 +231,6 @@ namespace MasterDevs.ChromeDevTools
             return null != evnt;
         }
 
-        private void WebSocket_Closed(object sender, EventArgs e)
-        {
-        }
-
-        private void WebSocket_DataReceived(object sender, DataReceivedEventArgs e)
-        {
-            ICommandResponse response;
-            if (TryGetCommandResponse(e.Data, out response))
-            {
-                HandleResponse(response);
-                return;
-            }
-            IEvent evnt;
-            if (TryGetEvent(e.Data, out evnt))
-            {
-                HandleEvent(evnt);
-                return;
-            }
-            throw new Exception("Don't know what to do with response: " + e.Data);
-        }
-
-        private void WebSocket_Error(object sender, SuperSocket.ClientEngine.ErrorEventArgs e)
-        {
-            throw e.Exception;
-        }
-
-        private void WebSocket_MessageReceived(object sender, MessageReceivedEventArgs e)
-        {
-            ICommandResponse response;
-            if (TryGetCommandResponse(e.Message, out response))
-            {
-                HandleResponse(response);
-                return;
-            }
-            IEvent evnt;
-            if (TryGetEvent(e.Message, out evnt))
-            {
-                HandleEvent(evnt);
-                return;
-            }
-            throw new Exception("Don't know what to do with response: " + e.Message);
-        }
-
-        private void WebSocket_Opened(object sender, EventArgs e)
-        {
-            _openEvent.Set();
-        }
     }
 }
 #endif
